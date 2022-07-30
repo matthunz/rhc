@@ -3,6 +3,7 @@ use crate::{Error, Literal, ParseStream};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BinaryOp {
     Add,
+    Sub,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -14,6 +15,10 @@ pub enum Expression {
     },
     Path(Vec<String>),
     Literal(Literal),
+    Call {
+        ident: String,
+        args: Vec<Self>,
+    },
 }
 
 impl Expression {
@@ -22,22 +27,54 @@ impl Expression {
             Self::Literal(lit)
         } else {
             let part = chars.map(|(_, c)| c).take_while(|c| *c != ' ').collect();
-            Self::Path(vec![part])
+
+            if chars.peek().map(|(_, c)| *c) == Some('(') {
+                chars.next();
+
+                let mut args = Vec::new();
+                loop {
+                    let arg = Self::parse(chars)?;
+                    args.push(arg);
+                    if chars.peek().map(|(_, c)| *c) == Some(')') {
+                        chars.next();
+                        // Remove space
+                chars.next();
+                        break;
+                    }
+                }
+
+                Self::Call { ident: part, args }
+            } else {
+                Self::Path(vec![part])
+            }
         };
 
-        if chars.peek().map(|(_, c)| *c) == Some('+') {
-            chars.next();
-            // Remove space
-            chars.next();
+        match chars.peek().map(|(_, c)| *c) {
+            Some('+') => {
+                chars.next();
+                // Remove space
+                chars.next();
 
-            let right = Self::parse(chars)?;
-            Ok(Self::BinaryOp {
-                left: Box::new(left),
-                op: BinaryOp::Add,
-                right: Box::new(right),
-            })
-        } else {
-            Ok(left)
+                let right = Self::parse(chars)?;
+                Ok(Self::BinaryOp {
+                    left: Box::new(left),
+                    op: BinaryOp::Add,
+                    right: Box::new(right),
+                })
+            }
+            Some('-') => {
+                chars.next();
+                // Remove space
+                chars.next();
+
+                let right = Self::parse(chars)?;
+                Ok(Self::BinaryOp {
+                    left: Box::new(left),
+                    op: BinaryOp::Sub,
+                    right: Box::new(right),
+                })
+            }
+            _ => Ok(left),
         }
     }
 
@@ -54,6 +91,7 @@ impl Expression {
                     s.push_str(part)
                 }
             }
+            _ => todo!(),
         }
     }
 }

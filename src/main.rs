@@ -2,6 +2,8 @@ mod expr;
 use expr::Expression;
 
 use std::{
+    fs::File,
+    io::{BufRead, BufReader},
     iter::{Enumerate, Peekable},
     str::Chars,
 };
@@ -246,11 +248,14 @@ impl Function {
 }
 
 fn main() {
-    let mut chars = parse_stream("f x y = x + y");
-    let f = Function::parse(&mut chars).unwrap();
-    let mut s = String::new();
-    f.to_js(&mut s);
-    println!("{}", s)
+    let path = std::env::args().nth(1).unwrap();
+    let  f = File::open(path).unwrap();
+    let mut lines = BufReader::new(f).lines();
+    while let Some(Ok(line)) = lines.next() {
+        let mut chars = parse_stream(&line);
+        let func = Function::parse(&mut chars).unwrap();
+        dbg!(func);
+    }
 }
 
 #[cfg(test)]
