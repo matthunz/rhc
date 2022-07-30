@@ -15,19 +15,57 @@ pub struct Span {
     end: usize,
 }
 
+impl Span {
+    pub fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Error {
+    span: Option<Span>,
+}
+
+impl Error {
+    pub fn new(span: Span) -> Self {
+        Self { span: Some(span) }
+    }
+
+    pub fn empty() -> Self {
+        Self { span: None }
+    }
+}
+
+fn parse_char(chars: &mut ParseStream, c: char) -> Result<usize, Error> {
+    if let Some((pos, next_c)) = chars.next() {
+        if next_c == c {
+            Ok(pos)
+        } else {
+            Err(Error::new(Span::new(pos, pos)))
+        }
+    } else {
+        Err(Error::empty())
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Literal {
     Int { value: String, span: Span },
 }
 
 impl Literal {
-    pub fn parse(chars: &mut ParseStream) -> Self {
-        let (start, first) = chars
-            .peek()
-            .filter(|(_, c)| c.is_ascii_digit())
-            .copied()
-            .unwrap();
-        chars.next();
+    pub fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
+        let (start, first) = if let Some((pos, c)) = chars.peek().copied() {
+            if c.is_ascii_digit() {
+                chars.next();
+                (pos, c)
+            } else {
+                return Err(Error::new(Span::new(pos, pos)));
+            }
+        } else {
+            return Err(Error::empty());
+        };
+
         let mut s = String::from(first);
 
         while let Some((_, c)) = chars.peek() {
@@ -43,7 +81,13 @@ impl Literal {
             end: start + s.len() - 1,
         };
 
-        Literal::Int { value: s, span }
+        Ok(Literal::Int { value: s, span })
+    }
+
+    pub fn to_js(&self, s: &mut String) {
+        match self {
+            Self::Int { value, span: _ } => s.push_str(value),
+        }
     }
 }
 
@@ -55,43 +99,59 @@ pub struct List {
 }
 
 impl List {
-    pub fn parse(chars: &mut ParseStream) -> Self {
-        let bracket_start = if let Some((pos, '[')) = chars.peek().copied() {
-            chars.next();
-            pos
-        } else {
-            todo!()
-        };
-
-        let start = Literal::parse(chars);
+    pub fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
+        let bracket_start = parse_char(chars, '[')?;
+        let start = Literal::parse(chars)?;
 
         for _ in 0..2 {
-            if chars.next_if(|(_, c)| *c == '.').is_none() {
-                todo!()
-            }
+            parse_char(chars, '.')?;
         }
 
-        let end = Literal::parse(chars);
+        let end = Literal::parse(chars)?;
+        let bracket_end = parse_char(chars, ']')?;
 
-        let bracket_end = if let Some((pos, ']')) = chars.peek().copied() {
-            chars.next();
-            pos
-        } else {
-            todo!()
-        };
-
-        Self {
+        Ok(Self {
             start,
             end,
             bracket: Span {
                 start: bracket_start,
                 end: bracket_end,
             },
-        }
+        })
+    }
+
+    pub fn to_js(&self, s: &mut String) {
+        let start = match &self.start {
+            Literal::Int { value, span } => value,
+        };
+        let end = match &self.end {
+            Literal::Int { value, span } => value,
+        };
+        let js = format!(
+            "{{
+            pos: {},
+            end: {},
+            next() {{
+                if (this.pos < this.end) {{
+                    return {{ done: false, value: this.pos++ }};
+                }} else {{
+                    return {{ done: true }};
+                }}
+            }}
+        }}",
+            start, end
+        );
+        s.push_str(&js);
     }
 }
 
-fn main() {}
+fn main() {
+    let mut chars = parse_stream("[1..5]");
+    let list = List::parse(&mut chars).unwrap();
+    let mut s = String::new();
+    list.to_js(&mut s);
+    println!("{}", s)
+}
 
 #[cfg(test)]
 mod tests {
@@ -100,7 +160,7 @@ mod tests {
     #[test]
     fn it_parses_int_literal() {
         let mut chars = parse_stream("42069");
-        let lit = Literal::parse(&mut chars);
+        let lit = Literal::parse(&mut chars).unwrap();
         assert_eq!(
             lit,
             Literal::Int {
@@ -113,7 +173,7 @@ mod tests {
     #[test]
     fn it_parses_list_range() {
         let mut chars = parse_stream("[1..5]");
-        let list = List::parse(&mut chars);
+        let list = List::parse(&mut chars).unwrap();
         assert_eq!(
             list,
             List {
