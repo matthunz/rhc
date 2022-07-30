@@ -1,3 +1,6 @@
+mod expr;
+use expr::Expression;
+
 use std::{
     iter::{Enumerate, Peekable},
     str::Chars,
@@ -162,7 +165,7 @@ impl List {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Statement {
-    Path(Vec<String>),
+    Expression(Expression),
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -209,8 +212,8 @@ impl Function {
             todo!()
         }
 
-        let path = vec![chars.map(|(_, c)| c).collect()];
-        let block = vec![Statement::Path(path)];
+        let expr = Expression::parse(chars)?;
+        let block = vec![Statement::Expression(expr)];
         Ok(Self { ident, args, block })
     }
 
@@ -228,23 +231,22 @@ impl Function {
         s.push(')');
 
         s.push('{');
+        s.push_str("return ");
         for stmt in &self.block {
             match stmt {
-                Statement::Path(path) => {
-                    s.push_str("return ");
-                    for part in path {
-                        s.push_str(part)
-                    }
-                    s.push(';');
+                Statement::Expression(expr) => {
+                    expr.to_js(s);
                 }
             }
         }
+
+        s.push(';');
         s.push('}');
     }
 }
 
 fn main() {
-    let mut chars = parse_stream("f x = x");
+    let mut chars = parse_stream("f x y = x + y");
     let f = Function::parse(&mut chars).unwrap();
     let mut s = String::new();
     f.to_js(&mut s);
