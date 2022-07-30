@@ -160,11 +160,94 @@ impl List {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Statement {
+    Path(Vec<String>),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Function {
+    ident: String,
+    args: Vec<String>,
+    block: Vec<Statement>,
+}
+
+impl Function {
+    pub fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
+        let ident: String = chars
+            .take_while(|(_, c)| *c != ' ')
+            .map(|(_, c)| c)
+            .collect();
+        if ident.is_empty() {
+            todo!()
+        }
+
+        let mut args = Vec::new();
+        let mut arg = String::new();
+        loop {
+            if let Some((_, c)) = chars.next() {
+                if c == ' ' {
+                    if arg.is_empty() {
+                        todo!()
+                    }
+
+                    args.push(arg);
+                    arg = String::new();
+                } else {
+                    arg.push(c);
+                }
+
+                if c == '=' {
+                    break;
+                }
+            } else {
+                todo!()
+            }
+        }
+
+        if chars.next().unwrap().1 != ' ' {
+            todo!()
+        }
+
+        let path = vec![chars.map(|(_, c)| c).collect()];
+        let block = vec![Statement::Path(path)];
+        Ok(Self { ident, args, block })
+    }
+
+    pub fn to_js(&self, s: &mut String) {
+        s.push_str("function ");
+        s.push_str(&self.ident);
+
+        s.push('(');
+        for (pos, arg) in self.args.iter().enumerate() {
+            s.push_str(arg);
+            if pos < self.args.len() - 1 {
+                s.push(',');
+            }
+        }
+        s.push(')');
+
+        s.push('{');
+        for stmt in &self.block {
+            match stmt {
+                Statement::Path(path) => {
+                    s.push_str("return ");
+                    for part in path {
+                        s.push_str(part)
+                    }
+                    s.push(';');
+                }
+            }
+        }
+        s.push('}');
+    }
+}
+
 fn main() {
-    let mut chars = parse_stream("[1..]");
-    let list = List::parse(&mut chars).unwrap();
+    let mut chars = parse_stream("f x = x");
+    let f = Function::parse(&mut chars).unwrap();
     let mut s = String::new();
-    list.to_js(&mut s);
+    f.to_js(&mut s);
     println!("{}", s)
 }
 
