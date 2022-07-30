@@ -94,7 +94,7 @@ impl Literal {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct List {
     start: Literal,
-    end: Literal,
+    end: Option<Literal>,
     bracket: Span,
 }
 
@@ -107,7 +107,7 @@ impl List {
             parse_char(chars, '.')?;
         }
 
-        let end = Literal::parse(chars)?;
+        let end = Literal::parse(chars).ok();
         let bracket_end = parse_char(chars, ']')?;
 
         Ok(Self {
@@ -124,29 +124,44 @@ impl List {
         let start = match &self.start {
             Literal::Int { value, span } => value,
         };
-        let end = match &self.end {
-            Literal::Int { value, span } => value,
-        };
-        let js = format!(
-            "{{
-            pos: {},
-            end: {},
-            next() {{
-                if (this.pos < this.end) {{
-                    return {{ done: false, value: this.pos++ }};
-                }} else {{
-                    return {{ done: true }};
+
+        if let Some(literal) = &self.end {
+            let end = match literal {
+                Literal::Int { value, span } => value,
+            };
+
+            let js = format!(
+                "{{
+                pos: {},
+                end: {},
+                next() {{
+                    if (this.pos < this.end) {{
+                        return {{ done: false, value: this.pos++ }};
+                    }} else {{
+                        return {{ done: true }};
+                    }}
                 }}
-            }}
-        }}",
-            start, end
-        );
-        s.push_str(&js);
+            }}",
+                start, end
+            );
+            s.push_str(&js);
+        } else {
+            let js = format!(
+                "{{
+                pos: {},
+                next() {{
+                    return {{ done: false, value: this.pos++ }};
+                }}
+            }}",
+                start
+            );
+            s.push_str(&js);
+        }
     }
 }
 
 fn main() {
-    let mut chars = parse_stream("[1..5]");
+    let mut chars = parse_stream("[1..]");
     let list = List::parse(&mut chars).unwrap();
     let mut s = String::new();
     list.to_js(&mut s);
@@ -181,10 +196,10 @@ mod tests {
                     value: "1".to_owned(),
                     span: Span { start: 1, end: 1 }
                 },
-                end: Literal::Int {
+                end: Some(Literal::Int {
                     value: "5".to_owned(),
                     span: Span { start: 4, end: 4 }
-                },
+                }),
                 bracket: Span { start: 0, end: 5 }
             }
         )
