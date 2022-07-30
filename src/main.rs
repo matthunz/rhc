@@ -40,16 +40,62 @@ impl Literal {
         }
         let span = Span {
             start,
-            end: start + s.len(),
+            end: start + s.len() - 1,
         };
 
         Literal::Int { value: s, span }
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct List {
+    start: Literal,
+    end: Literal,
+    bracket: Span,
+}
+
+impl List {
+    pub fn parse(chars: &mut ParseStream) -> Self {
+        let bracket_start = if let Some((pos, '[')) = chars.peek().copied() {
+            chars.next();
+            pos
+        } else {
+            todo!()
+        };
+
+        let start = Literal::parse(chars);
+
+        for _ in 0..2 {
+            if chars.next_if(|(_, c)| *c == '.').is_none() {
+                todo!()
+            }
+        }
+
+        let end = Literal::parse(chars);
+
+        let bracket_end = if let Some((pos, ']')) = chars.peek().copied() {
+            chars.next();
+            pos
+        } else {
+            todo!()
+        };
+
+        Self {
+            start,
+            end,
+            bracket: Span {
+                start: bracket_start,
+                end: bracket_end,
+            },
+        }
+    }
+}
+
+fn main() {}
+
 #[cfg(test)]
 mod tests {
-    use crate::{parse_stream, Literal, Span};
+    use crate::{parse_stream, List, Literal, Span};
 
     #[test]
     fn it_parses_int_literal() {
@@ -59,12 +105,28 @@ mod tests {
             lit,
             Literal::Int {
                 value: "42069".to_owned(),
-                span: Span { start: 0, end: 5 }
+                span: Span { start: 0, end: 4 }
             }
         )
     }
-}
 
-fn main() {
-    let s = "[1..5]";
+    #[test]
+    fn it_parses_list_range() {
+        let mut chars = parse_stream("[1..5]");
+        let list = List::parse(&mut chars);
+        assert_eq!(
+            list,
+            List {
+                start: Literal::Int {
+                    value: "1".to_owned(),
+                    span: Span { start: 1, end: 1 }
+                },
+                end: Literal::Int {
+                    value: "5".to_owned(),
+                    span: Span { start: 4, end: 4 }
+                },
+                bracket: Span { start: 0, end: 5 }
+            }
+        )
+    }
 }
