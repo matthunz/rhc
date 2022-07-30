@@ -171,9 +171,31 @@ pub enum Statement {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Pattern {
+    Literal(Literal),
+    Ident(String),
+}
+
+impl Pattern {
+    pub fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
+        if let Ok(lit) = Literal::parse(chars) {
+            // remove whitespace?
+            chars.next();
+            Ok(Self::Literal(lit))
+        } else {
+            let ident: String = chars.map(|(_, c)| c).take_while(|c| *c != ' ').collect();
+            if ident.is_empty() {
+                todo!()
+            }
+            Ok(Self::Ident(ident))
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Function {
     ident: String,
-    args: Vec<String>,
+    patterns: Vec<Pattern>,
     block: Vec<Statement>,
 }
 
@@ -187,26 +209,15 @@ impl Function {
             todo!()
         }
 
-        let mut args = Vec::new();
+        let mut patterns = Vec::new();
         let mut arg = String::new();
+
         loop {
-            if let Some((_, c)) = chars.next() {
-                if c == ' ' {
-                    if arg.is_empty() {
-                        todo!()
-                    }
-
-                    args.push(arg);
-                    arg = String::new();
-                } else {
-                    arg.push(c);
-                }
-
-                if c == '=' {
-                    break;
-                }
-            } else {
-                todo!()
+            let pattern = Pattern::parse(chars)?;
+            patterns.push(pattern);
+            if chars.peek().map(|(_, c)| *c) == Some('=') {
+                chars.next();
+                break;
             }
         }
 
@@ -216,7 +227,11 @@ impl Function {
 
         let expr = Expression::parse(chars)?;
         let block = vec![Statement::Expression(expr)];
-        Ok(Self { ident, args, block })
+        Ok(Self {
+            ident,
+            patterns,
+            block,
+        })
     }
 
     pub fn to_js(&self, s: &mut String) {
@@ -224,12 +239,14 @@ impl Function {
         s.push_str(&self.ident);
 
         s.push('(');
-        for (pos, arg) in self.args.iter().enumerate() {
+        /*
+        for (pos, arg) in self.patterns.iter().enumerate() {
             s.push_str(arg);
-            if pos < self.args.len() - 1 {
+            if pos < self.patterns.len() - 1 {
                 s.push(',');
             }
         }
+        */
         s.push(')');
 
         s.push('{');
@@ -247,16 +264,27 @@ impl Function {
     }
 }
 
+pub struct Block {
+    pat: Pattern,
+    exprs: Vec<Expression>,
+}
+
+pub struct FunctionItem {
+    blocks: Vec<Block>,
+}
+
 fn main() {
     let path = std::env::args().nth(1).unwrap();
     let f = File::open(path).unwrap();
     let mut lines = BufReader::new(f).lines();
 
+    let mut funcs = Vec::new();
     while let Some(Ok(line)) = lines.next() {
         let mut chars = parse_stream(&line);
         let func = Function::parse(&mut chars).unwrap();
-        dbg!(func);
+        funcs.push(func);
     }
+    dbg!(&funcs);
 }
 
 #[cfg(test)]
