@@ -91,7 +91,18 @@ impl Expression {
                     s.push_str(part)
                 }
             }
-            _ => todo!(),
+            Self::Call { ident, args } => {
+                s.push_str(ident);
+                s.push('(');
+                for (pos, arg) in args.iter().enumerate() {
+                    arg.to_js(s);
+                    if pos < args.len() - 1 {
+                        s.push(',');
+                    }
+                }
+               
+                s.push(')');
+            }
         }
     }
 }

@@ -249,8 +249,9 @@ impl Function {
 
 fn main() {
     let path = std::env::args().nth(1).unwrap();
-    let  f = File::open(path).unwrap();
+    let f = File::open(path).unwrap();
     let mut lines = BufReader::new(f).lines();
+
     while let Some(Ok(line)) = lines.next() {
         let mut chars = parse_stream(&line);
         let func = Function::parse(&mut chars).unwrap();
