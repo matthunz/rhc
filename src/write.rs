@@ -1,7 +1,12 @@
 pub trait Write {
     fn write_return(&mut self, f: impl FnOnce(&mut Self));
 
-    fn write_function(&mut self, ident: &str, args: impl FnOnce(&mut Self), block: impl FnOnce(&mut Self));
+    fn write_function(
+        &mut self,
+        ident: &str,
+        args: impl FnOnce(&mut Self),
+        block: impl FnOnce(&mut Self),
+    );
 }
 
 impl Write for String {

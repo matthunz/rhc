@@ -1,4 +1,4 @@
-use crate::{Error, Literal, ParseStream};
+use super::{Error, Literal, ParseStream};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BinaryOp {
