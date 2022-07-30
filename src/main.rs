@@ -1,6 +1,9 @@
 mod expr;
 use expr::Expression;
 
+mod write;
+pub use write::Write;
+
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -174,9 +177,7 @@ impl Statement {
     pub fn to_js(&self, s: &mut String) {
         match self {
             Self::Expression(expr) => {
-                s.push_str("return ");
-                expr.to_js(s);
-                s.push(';');
+                s.write_return(|s| expr.to_js(s));
             }
         }
     }
@@ -222,8 +223,6 @@ impl Function {
         }
 
         let mut patterns = Vec::new();
-        let mut arg = String::new();
-
         loop {
             let pattern = Pattern::parse(chars)?;
             patterns.push(pattern);
@@ -245,35 +244,6 @@ impl Function {
             block,
         })
     }
-
-    pub fn to_js(&self, s: &mut String) {
-        s.push_str("function ");
-        s.push_str(&self.ident);
-
-        s.push('(');
-        /*
-        for (pos, arg) in self.patterns.iter().enumerate() {
-            s.push_str(arg);
-            if pos < self.patterns.len() - 1 {
-                s.push(',');
-            }
-        }
-        */
-        s.push(')');
-
-        s.push('{');
-        s.push_str("return ");
-        for stmt in &self.block {
-            match stmt {
-                Statement::Expression(expr) => {
-                    expr.to_js(s);
-                }
-            }
-        }
-
-        s.push(';');
-        s.push('}');
-    }
 }
 
 pub struct Block {
@@ -288,9 +258,6 @@ pub struct FunctionItem {
 
 impl FunctionItem {
     pub fn to_js(&self, s: &mut String) {
-        s.push_str("function ");
-        s.push_str(&self.ident);
-
         let mut args = Vec::new();
         for block in &self.blocks {
             for pat in &block.patterns {
@@ -305,47 +272,49 @@ impl FunctionItem {
             }
         }
 
-        s.push('(');
-        for arg in &args {
-            s.push_str(arg);
-        }
-        s.push_str("){");
-
-        for block in &self.blocks {
-            let conds: Vec<_> = block
-                .patterns
-                .iter()
-                .filter_map(|pat| match pat {
-                    Pattern::Ident(_) => None,
-                    Pattern::Literal(lit) => Some(lit),
-                })
-                .collect();
-
-            if conds.is_empty() {
-                for stmt in &block.stmts {
-                    stmt.to_js(s);
+        s.write_function(
+            &self.ident,
+            |s| {
+                for arg in &args {
+                    s.push_str(arg);
                 }
-            } else {
-                s.push_str("if (");
-                for (pos, cond) in conds.iter().enumerate() {
-                    s.push_str(&args[pos]);
-                    s.push_str(" == ");
-                    cond.to_js(s);
+            },
+            |s| {
+                for block in &self.blocks {
+                    let conds: Vec<_> = block
+                        .patterns
+                        .iter()
+                        .filter_map(|pat| match pat {
+                            Pattern::Ident(_) => None,
+                            Pattern::Literal(lit) => Some(lit),
+                        })
+                        .collect();
 
-                    if pos < conds.len() - 1 {
-                        s.push_str(" && ");
+                    if conds.is_empty() {
+                        for stmt in &block.stmts {
+                            stmt.to_js(s);
+                        }
+                    } else {
+                        s.push_str("if (");
+                        for (pos, cond) in conds.iter().enumerate() {
+                            s.push_str(&args[pos]);
+                            s.push_str(" == ");
+                            cond.to_js(s);
+
+                            if pos < conds.len() - 1 {
+                                s.push_str(" && ");
+                            }
+                        }
+                        s.push_str("){");
+
+                        for stmt in &block.stmts {
+                            stmt.to_js(s);
+                        }
+                        s.push('}');
                     }
                 }
-                s.push_str("){");
-
-                for stmt in &block.stmts {
-                    stmt.to_js(s);
-                }
-                s.push('}');
-            }
-        }
-
-        s.push('}');
+            },
+        );
     }
 }
 
