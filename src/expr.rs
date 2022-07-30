@@ -6,6 +6,15 @@ pub enum BinaryOp {
     Sub,
 }
 
+impl BinaryOp {
+    pub fn to_js(&self, s: &mut String) {
+        match self {
+            Self::Add => s.push('+'),
+            Self::Sub => s.push('-'),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expression {
     BinaryOp {
@@ -38,7 +47,7 @@ impl Expression {
                     if chars.peek().map(|(_, c)| *c) == Some(')') {
                         chars.next();
                         // Remove space
-                chars.next();
+                        chars.next();
                         break;
                     }
                 }
@@ -82,7 +91,7 @@ impl Expression {
         match self {
             Self::BinaryOp { left, op, right } => {
                 left.to_js(s);
-                s.push('+');
+                op.to_js(s);
                 right.to_js(s);
             }
             Self::Literal(lit) => lit.to_js(s),
@@ -100,7 +109,7 @@ impl Expression {
                         s.push(',');
                     }
                 }
-               
+
                 s.push(')');
             }
         }

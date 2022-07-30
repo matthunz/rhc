@@ -170,6 +170,18 @@ pub enum Statement {
     Expression(Expression),
 }
 
+impl Statement {
+    pub fn to_js(&self, s: &mut String) {
+        match self {
+            Self::Expression(expr) => {
+                s.push_str("return ");
+                expr.to_js(s);
+                s.push(';');
+            }
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Pattern {
     Literal(Literal),
@@ -265,12 +277,76 @@ impl Function {
 }
 
 pub struct Block {
-    pat: Pattern,
-    exprs: Vec<Expression>,
+    patterns: Vec<Pattern>,
+    stmts: Vec<Statement>,
 }
 
 pub struct FunctionItem {
+    ident: String,
     blocks: Vec<Block>,
+}
+
+impl FunctionItem {
+    pub fn to_js(&self, s: &mut String) {
+        s.push_str("function ");
+        s.push_str(&self.ident);
+
+        let mut args = Vec::new();
+        for block in &self.blocks {
+            for pat in &block.patterns {
+                match pat {
+                    Pattern::Ident(ident) => {
+                        if !args.contains(ident) {
+                            args.push(ident.clone());
+                        }
+                    }
+                    Pattern::Literal(lit) => {}
+                }
+            }
+        }
+
+        s.push('(');
+        for arg in &args {
+            s.push_str(arg);
+        }
+        s.push_str("){");
+
+        for block in &self.blocks {
+            let conds: Vec<_> = block
+                .patterns
+                .iter()
+                .filter_map(|pat| match pat {
+                    Pattern::Ident(_) => None,
+                    Pattern::Literal(lit) => Some(lit),
+                })
+                .collect();
+
+            if conds.is_empty() {
+                for stmt in &block.stmts {
+                    stmt.to_js(s);
+                }
+            } else {
+                s.push_str("if (");
+                for (pos, cond) in conds.iter().enumerate() {
+                    s.push_str(&args[pos]);
+                    s.push_str(" == ");
+                    cond.to_js(s);
+
+                    if pos < conds.len() - 1 {
+                        s.push_str(" && ");
+                    }
+                }
+                s.push_str("){");
+
+                for stmt in &block.stmts {
+                    stmt.to_js(s);
+                }
+                s.push('}');
+            }
+        }
+
+        s.push('}');
+    }
 }
 
 fn main() {
@@ -284,7 +360,20 @@ fn main() {
         let func = Function::parse(&mut chars).unwrap();
         funcs.push(func);
     }
-    dbg!(&funcs);
+    let i = FunctionItem {
+        ident: funcs.first().unwrap().ident.clone(),
+        blocks: funcs
+            .iter()
+            .map(|func| Block {
+                patterns: func.patterns.clone(),
+                stmts: func.block.clone(),
+            })
+            .collect(),
+    };
+
+    let mut js = String::new();
+    i.to_js(&mut js);
+    println!("{}", js);
 }
 
 #[cfg(test)]
