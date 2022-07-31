@@ -33,6 +33,10 @@ fn parse_char(chars: &mut ParseStream, c: char) -> Result<usize, Error> {
     }
 }
 
+pub trait Parse: Sized {
+    fn parse(chars: &mut ParseStream) -> Result<Self, Error>;
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Span {
     pub start: usize,
@@ -57,5 +61,28 @@ impl Error {
 
     pub fn empty() -> Self {
         Self { span: None }
+    }
+}
+
+pub struct Module {
+    funcs: Vec<Function>,
+}
+
+impl Parse for Module {
+    fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
+        let mut funcs = Vec::new();
+        loop {
+            let func = Function::parse(chars)?;
+            funcs.push(func);
+
+            if let Some((pos, c)) = chars.next() {
+                if c != '\n' {
+                    return Err(Error::new(Span::new(pos, pos)));
+                }
+            } else {
+                break;
+            }
+        }
+        Ok(Self { funcs })
     }
 }

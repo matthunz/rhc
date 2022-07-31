@@ -1,5 +1,5 @@
 pub mod hs;
-use hs::{Expression, Pattern};
+use hs::{Error, Expression, ParseStream, Pattern};
 
 mod write;
 pub use write::Write;
@@ -91,6 +91,12 @@ impl FunctionItem {
         );
     }
 }
+
+pub struct Token {
+    pub c: char,
+}
+
+pub struct Tokens {}
 
 fn main() {
     let path = std::env::args().nth(1).unwrap();
