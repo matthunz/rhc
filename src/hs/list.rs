@@ -1,4 +1,4 @@
-use super::{parse_char, Error, Literal, ParseStream, Span};
+use super::{Error, FromTokens, Literal, Span, Tokens};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct List {
@@ -8,35 +8,14 @@ pub struct List {
 }
 
 impl List {
-    pub fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
-        let bracket_start = parse_char(chars, '[')?;
-        let start = Literal::parse(chars)?;
-
-        for _ in 0..2 {
-            parse_char(chars, '.')?;
-        }
-
-        let end = Literal::parse(chars).ok();
-        let bracket_end = parse_char(chars, ']')?;
-
-        Ok(Self {
-            start,
-            end,
-            bracket: Span {
-                start: bracket_start,
-                end: bracket_end,
-            },
-        })
-    }
-
     pub fn to_js(&self, s: &mut String) {
         let start = match &self.start {
-            Literal::Int { value, span } => value,
+            Literal::Int { value, span: _ } => value,
         };
 
         if let Some(literal) = &self.end {
             let end = match literal {
-                Literal::Int { value, span } => value,
+                Literal::Int { value, span: _ } => value,
             };
 
             let js = format!(
@@ -66,5 +45,28 @@ impl List {
             );
             s.push_str(&js);
         }
+    }
+}
+
+impl FromTokens for List {
+    fn from_tokens(tokens: &mut Tokens<'_>) -> Result<Self, Error> {
+        let bracket_start = tokens.parse_char('[')?;
+        let start = Literal::from_tokens(tokens)?;
+
+        for _ in 0..2 {
+            tokens.parse_char('.')?;
+        }
+
+        let end = Literal::from_tokens(tokens).ok();
+        let bracket_end = tokens.parse_char(']')?;
+
+        Ok(Self {
+            start,
+            end,
+            bracket: Span {
+                start: bracket_start,
+                end: bracket_end,
+            },
+        })
     }
 }

@@ -1,4 +1,4 @@
-use super::{expression::Expression, Error, Literal, ParseStream};
+use super::{expression::Expression, FromTokens, Literal, Tokens};
 use crate::Statement;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -7,14 +7,17 @@ pub enum Pattern {
     Ident(String),
 }
 
-impl Pattern {
-    pub fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
-        if let Ok(lit) = Literal::parse(chars) {
+impl FromTokens for Pattern {
+    fn from_tokens(tokens: &mut super::Tokens<'_>) -> Result<Self, super::Error> {
+        if let Ok(lit) = Literal::from_tokens(tokens) {
             // remove whitespace?
-            chars.next();
+            tokens.next();
             Ok(Self::Literal(lit))
         } else {
-            let ident: String = chars.map(|(_, c)| c).take_while(|c| *c != ' ').collect();
+            let ident: String = tokens
+                .map(|token| token.c)
+                .take_while(|c| *c != ' ')
+                .collect();
             if ident.is_empty() {
                 todo!()
             }
@@ -30,11 +33,11 @@ pub struct Function {
     pub stmt: Statement,
 }
 
-impl Function {
-    pub fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
-        let ident: String = chars
-            .take_while(|(_, c)| *c != ' ')
-            .map(|(_, c)| c)
+impl FromTokens for Function {
+    fn from_tokens(tokens: &mut Tokens<'_>) -> Result<Self, super::Error> {
+        let ident: String = tokens
+            .take_while(|token| token.c != ' ')
+            .map(|token| token.c)
             .collect();
         if ident.is_empty() {
             todo!()
@@ -42,19 +45,19 @@ impl Function {
 
         let mut patterns = Vec::new();
         loop {
-            let pattern = Pattern::parse(chars)?;
+            let pattern = Pattern::from_tokens(tokens)?;
             patterns.push(pattern);
-            if chars.peek().map(|(_, c)| *c) == Some('=') {
-                chars.next();
+            if tokens.peek().map(|token| token.c) == Some('=') {
+                tokens.next();
                 break;
             }
         }
 
-        if chars.next().unwrap().1 != ' ' {
+        if tokens.next().unwrap().c != ' ' {
             todo!()
         }
 
-        let expr = Expression::parse(chars)?;
+        let expr = Expression::from_tokens(tokens)?;
         let stmt = Statement::Expression(expr);
         Ok(Self {
             ident,

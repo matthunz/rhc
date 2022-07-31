@@ -1,4 +1,4 @@
-use super::{Error, Literal, ParseStream};
+use super::{FromTokens, Literal, Tokens};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BinaryOp {
@@ -30,24 +30,27 @@ pub enum Expression {
     },
 }
 
-impl Expression {
-    pub fn parse(chars: &mut ParseStream) -> Result<Self, Error> {
-        let left = if let Ok(lit) = Literal::parse(chars) {
+impl FromTokens for Expression {
+    fn from_tokens(tokens: &mut Tokens) -> Result<Self, super::Error> {
+        let left = if let Ok(lit) = Literal::from_tokens(tokens) {
             Self::Literal(lit)
         } else {
-            let part = chars.map(|(_, c)| c).take_while(|c| *c != ' ').collect();
+            let part = tokens
+                .map(|token| token.c)
+                .take_while(|c| *c != ' ')
+                .collect();
 
-            if chars.peek().map(|(_, c)| *c) == Some('(') {
-                chars.next();
+            if tokens.peek_char() == Some('(') {
+                tokens.next();
 
                 let mut args = Vec::new();
                 loop {
-                    let arg = Self::parse(chars)?;
+                    let arg = Self::from_tokens(tokens)?;
                     args.push(arg);
-                    if chars.peek().map(|(_, c)| *c) == Some(')') {
-                        chars.next();
+                    if tokens.peek_char() == Some(')') {
+                        tokens.next();
                         // Remove space
-                        chars.next();
+                        tokens.next();
                         break;
                     }
                 }
@@ -58,13 +61,13 @@ impl Expression {
             }
         };
 
-        match chars.peek().map(|(_, c)| *c) {
+        match tokens.peek_char() {
             Some('+') => {
-                chars.next();
+                tokens.next();
                 // Remove space
-                chars.next();
+                tokens.next();
 
-                let right = Self::parse(chars)?;
+                let right = Self::from_tokens(tokens)?;
                 Ok(Self::BinaryOp {
                     left: Box::new(left),
                     op: BinaryOp::Add,
@@ -72,11 +75,11 @@ impl Expression {
                 })
             }
             Some('-') => {
-                chars.next();
+                tokens.next();
                 // Remove space
-                chars.next();
+                tokens.next();
 
-                let right = Self::parse(chars)?;
+                let right = Self::from_tokens(tokens)?;
                 Ok(Self::BinaryOp {
                     left: Box::new(left),
                     op: BinaryOp::Sub,
@@ -86,7 +89,9 @@ impl Expression {
             _ => Ok(left),
         }
     }
+}
 
+impl Expression {
     pub fn to_js(&self, s: &mut String) {
         match self {
             Self::BinaryOp { left, op, right } => {
