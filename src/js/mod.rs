@@ -1,3 +1,6 @@
+mod function;
+pub use function::{Block, FunctionItem};
+
 pub trait Write {
     fn write_return(&mut self, f: impl FnOnce(&mut Self));
 

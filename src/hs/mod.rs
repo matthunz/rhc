@@ -15,6 +15,9 @@ pub use literal::Literal;
 mod list;
 pub use list::List;
 
+mod stmt;
+pub use stmt::Statement;
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct LineColumn {
     pub line: usize,

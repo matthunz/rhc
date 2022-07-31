@@ -1,5 +1,4 @@
-use super::{expression::Expression, FromTokens, Literal, Tokens};
-use crate::Statement;
+use super::{expression::Expression, FromTokens, Literal, Statement, Tokens};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Pattern {

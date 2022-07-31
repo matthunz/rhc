@@ -1,6 +1,8 @@
-use rhc::{FunctionItem, Block, hs::{Tokens, Module, FromTokens}};
+use rhc::{
+    hs::{FromTokens, Module, Tokens},
+    js::{Block, FunctionItem},
+};
 use std::{fs::File, io::Read};
-
 
 fn main() {
     let path = std::env::args().nth(1).unwrap();
