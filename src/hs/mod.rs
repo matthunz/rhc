@@ -1,9 +1,4 @@
 mod expression;
-use std::{
-    iter::{Enumerate, Peekable},
-    str::Chars,
-};
-
 pub use expression::{BinaryOp, Expression};
 
 mod function;
@@ -17,6 +12,8 @@ pub use list::List;
 
 mod stmt;
 pub use stmt::Statement;
+
+use std::{iter::Peekable, str::Chars};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct LineColumn {
