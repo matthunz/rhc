@@ -27,7 +27,7 @@ impl Statement {
 
 pub struct Block {
     patterns: Vec<Pattern>,
-    stmts: Vec<Statement>,
+    stmt: Statement,
 }
 
 pub struct FunctionItem {
@@ -70,9 +70,7 @@ impl FunctionItem {
                         .collect();
 
                     if conds.is_empty() {
-                        for stmt in &block.stmts {
-                            stmt.to_js(s);
-                        }
+                        block.stmt.to_js(s);
                     } else {
                         s.push_str("if (");
                         for (pos, cond) in conds.iter().enumerate() {
@@ -85,10 +83,7 @@ impl FunctionItem {
                             }
                         }
                         s.push_str("){");
-
-                        for stmt in &block.stmts {
-                            stmt.to_js(s);
-                        }
+                        block.stmt.to_js(s);
                         s.push('}');
                     }
                 }
@@ -114,7 +109,7 @@ fn main() {
             .iter()
             .map(|func| Block {
                 patterns: func.patterns.clone(),
-                stmts: func.block.clone(),
+                stmt: func.stmt.clone(),
             })
             .collect(),
     };

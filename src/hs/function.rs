@@ -27,7 +27,7 @@ impl Pattern {
 pub struct Function {
     pub ident: String,
     pub patterns: Vec<Pattern>,
-    pub block: Vec<Statement>,
+    pub stmt: Statement,
 }
 
 impl Function {
@@ -55,11 +55,11 @@ impl Function {
         }
 
         let expr = Expression::parse(chars)?;
-        let block = vec![Statement::Expression(expr)];
+        let stmt = Statement::Expression(expr);
         Ok(Self {
             ident,
             patterns,
-            block,
+            stmt,
         })
     }
 }
